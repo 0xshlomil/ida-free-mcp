@@ -83,10 +83,10 @@ Copy the built plugin to your IDA plugins directory:
 
 ```bash
 # Linux
-cp build/plugin/ida_mcp.so ~/ida-free-pc-9.2/plugins/
+cp build/plugin/ida_mcp.so ~/ida-free-9.3/plugins/
 
 # macOS
-cp build/plugin/ida_mcp.dylib ~/ida-free-pc-9.2/plugins/
+cp build/plugin/ida_mcp.dylib ~/ida-free-9.3/plugins/
 
 # Windows
 copy build\plugin\ida_mcp.dll "%APPDATA%\Hex-Rays\IDA Pro\plugins\"
@@ -105,7 +105,7 @@ copy build\plugin\ida_mcp.dll "%APPDATA%\Hex-Rays\IDA Pro\plugins\"
 #### Claude Code
 
 ```bash
-claude mcp add ida-mcp -- http://127.0.0.1:13337/mcp
+claude mcp add --transport http ida-mcp http://127.0.0.1:13337/mcp
 ```
 
 Or add it to `.mcp.json` in your project root:
