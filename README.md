@@ -100,14 +100,53 @@ copy build\plugin\ida_mcp.dll "%APPDATA%\Hex-Rays\IDA Pro\plugins\"
 4. Connect your MCP client to `http://127.0.0.1:13337/mcp`
 5. Press **Ctrl+Alt+M** again to stop the server
 
-### Client configuration
+### Claude
 
-Add to your MCP client config (e.g. Claude Desktop, Claude Code):
+#### Claude Code
+
+```bash
+claude mcp add ida-mcp -- http://127.0.0.1:13337/mcp
+```
+
+Or add it to `.mcp.json` in your project root:
 
 ```json
 {
   "mcpServers": {
-    "ida-pro-mcp": {
+    "ida-mcp": {
+      "url": "http://127.0.0.1:13337/mcp"
+    }
+  }
+}
+```
+
+#### Claude Desktop
+
+Add the following to your Claude Desktop config file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "ida-mcp": {
+      "url": "http://127.0.0.1:13337/mcp"
+    }
+  }
+}
+```
+
+Then restart Claude Desktop.
+
+### Other MCP clients
+
+Add to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "ida-mcp": {
       "url": "http://127.0.0.1:13337/mcp"
     }
   }

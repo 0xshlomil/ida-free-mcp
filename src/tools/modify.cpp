@@ -8,6 +8,8 @@
 #ifndef IDA_MCP_TESTING
 #include <idp.hpp>
 #include <funcs.hpp>
+#include <frame.hpp>
+#include <typeinf.hpp>
 #include <name.hpp>
 #include <bytes.hpp>
 #include <ua.hpp>
@@ -64,7 +66,7 @@ static json tool_set_comments(const json& params) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// rename (functions and globals only; locals/stack deferred)
+// rename (functions, globals, and stack variables)
 // ═══════════════════════════════════════════════════════════════════
 
 static json tool_rename(const json& params) {
@@ -141,6 +143,68 @@ static json tool_rename(const json& params) {
             }
         }
         result["data"] = data_results;
+    }
+
+    // Rename stack variables
+    if (batch.contains("stack")) {
+        json stack_items = batch["stack"];
+        if (stack_items.is_object()) stack_items = json::array({stack_items});
+        if (stack_items.is_null()) stack_items = json::array();
+
+        json stack_results = json::array();
+        for (const auto& item : stack_items) {
+            std::string addr_str = item.value("addr", "");
+            std::string old_name = item.value("old", "");
+            std::string new_name = item.value("name", "");
+
+            try {
+                ea_t ea = utils::parse_address(addr_str);
+                func_t* fn = get_func(ea);
+                if (!fn) {
+                    stack_results.push_back({
+                        {"addr", addr_str}, {"old", old_name}, {"name", new_name},
+                        {"ok", false}, {"error", "Not a function"},
+                    });
+                    continue;
+                }
+
+                tinfo_t frame_tif;
+                if (!get_func_frame(&frame_tif, fn)) {
+                    stack_results.push_back({
+                        {"addr", addr_str}, {"old", old_name}, {"name", new_name},
+                        {"ok", false}, {"error", "No stack frame found"},
+                    });
+                    continue;
+                }
+
+                // Find member by old name
+                udm_t udm;
+                udm.name = old_name.c_str();
+                int idx = frame_tif.find_udm(&udm, STRMEM_NAME);
+                if (idx < 0) {
+                    stack_results.push_back({
+                        {"addr", addr_str}, {"old", old_name}, {"name", new_name},
+                        {"ok", false}, {"error", "Stack variable not found: " + old_name},
+                    });
+                    continue;
+                }
+
+                // Rename directly — no delete/recreate needed
+                tinfo_code_t rc = frame_tif.rename_udm(static_cast<size_t>(idx), new_name.c_str());
+                bool ok = (rc == TERR_OK);
+                stack_results.push_back({
+                    {"addr", addr_str}, {"old", old_name}, {"name", new_name},
+                    {"ok", ok},
+                    {"error", ok ? json(nullptr) : json("rename_udm failed (code " + std::to_string(rc) + ")")},
+                });
+            } catch (const std::exception& e) {
+                stack_results.push_back({
+                    {"addr", addr_str}, {"old", old_name}, {"name", new_name},
+                    {"ok", false}, {"error", e.what()},
+                });
+            }
+        }
+        result["stack"] = stack_results;
     }
 
     return result;
@@ -400,6 +464,19 @@ void register_modify_tools(McpProtocol& mcp) {
                          {{"type", "object"}},
                          {{"type", "null"}},
                      })}, {"description", "Global/data variable rename operations"}}},
+                     {"stack", {{"anyOf", json::array({
+                         {{"type", "array"}, {"items", {{"type", "object"}, {"properties", {
+                             {"addr", {{"type", "string"}, {"description", "Function address"}}},
+                             {"old", {{"type", "string"}, {"description", "Current variable name"}}},
+                             {"name", {{"type", "string"}, {"description", "New variable name"}}},
+                         }}, {"required", json::array({"addr", "old", "name"})}}}},
+                         {{"type", "object"}, {"properties", {
+                             {"addr", {{"type", "string"}, {"description", "Function address"}}},
+                             {"old", {{"type", "string"}, {"description", "Current variable name"}}},
+                             {"name", {{"type", "string"}, {"description", "New variable name"}}},
+                         }}, {"required", json::array({"addr", "old", "name"})}},
+                         {{"type", "null"}},
+                     })}, {"description", "Stack variable rename operations"}}},
                  }},
              })
              .build()},
