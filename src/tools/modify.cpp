@@ -13,6 +13,7 @@
 #include <name.hpp>
 #include <bytes.hpp>
 #include <ua.hpp>
+#include <hexrays.hpp>
 #endif
 
 #include <string>
@@ -51,9 +52,28 @@ static json tool_set_comments(const json& params) {
                 continue;
             }
 
+            // Also set decompiler comment if Hex-Rays is available
+            bool decompiler_ok = false;
+            if (init_hexrays_plugin()) {
+                func_t* fn = get_func(ea);
+                if (fn) {
+                    user_cmts_t* cmts = restore_user_cmts(fn->start_ea);
+                    if (!cmts) cmts = user_cmts_new();
+                    treeloc_t loc;
+                    loc.ea = ea;
+                    loc.itp = ITP_SEMI;
+                    citem_cmt_t cmt_val(comment.c_str());
+                    user_cmts_insert(cmts, loc, cmt_val);
+                    save_user_cmts(fn->start_ea, cmts);
+                    user_cmts_free(cmts);
+                    decompiler_ok = true;
+                }
+            }
+
             results.push_back({
                 {"addr", addr_str},
                 {"ok", true},
+                {"decompiler", decompiler_ok},
             });
         } catch (const std::exception& e) {
             results.push_back({
@@ -86,7 +106,19 @@ static json tool_rename(const json& params) {
                 std::string new_name = item.value("name", "");
                 ea_t ea = utils::parse_address(addr_str);
 
-                bool success = set_name(ea, new_name.c_str(), SN_CHECK);
+                // Pre-check for duplicate names to avoid IDA popup
+                ea_t existing_ea = get_name_ea(BADADDR, new_name.c_str());
+                if (existing_ea != BADADDR && existing_ea != ea) {
+                    func_results.push_back({
+                        {"addr", addr_str},
+                        {"name", new_name},
+                        {"ok", false},
+                        {"error", "Name '" + new_name + "' already exists at " + utils::hex_str(existing_ea)},
+                    });
+                    continue;
+                }
+
+                bool success = set_name(ea, new_name.c_str(), SN_CHECK | SN_NOWARN);
                 func_results.push_back({
                     {"addr", addr_str},
                     {"name", new_name},
@@ -128,7 +160,19 @@ static json tool_rename(const json& params) {
                     continue;
                 }
 
-                bool success = set_name(ea, new_name.c_str(), SN_CHECK);
+                // Pre-check for duplicate names to avoid IDA popup
+                ea_t existing_ea = get_name_ea(BADADDR, new_name.c_str());
+                if (existing_ea != BADADDR && existing_ea != ea) {
+                    data_results.push_back({
+                        {"old", old_name},
+                        {"new", new_name},
+                        {"ok", false},
+                        {"error", "Name '" + new_name + "' already exists at " + utils::hex_str(existing_ea)},
+                    });
+                    continue;
+                }
+
+                bool success = set_name(ea, new_name.c_str(), SN_CHECK | SN_NOWARN);
                 data_results.push_back({
                     {"old", old_name},
                     {"new", new_name},
@@ -192,9 +236,17 @@ static json tool_rename(const json& params) {
                 // Rename directly — no delete/recreate needed
                 tinfo_code_t rc = frame_tif.rename_udm(static_cast<size_t>(idx), new_name.c_str());
                 bool ok = (rc == TERR_OK);
+
+                // Also rename in decompiler if Hex-Rays is available
+                bool decompiler_ok = false;
+                if (ok && init_hexrays_plugin()) {
+                    decompiler_ok = rename_lvar(fn->start_ea, old_name.c_str(), new_name.c_str());
+                }
+
                 stack_results.push_back({
                     {"addr", addr_str}, {"old", old_name}, {"name", new_name},
                     {"ok", ok},
+                    {"decompiler", decompiler_ok},
                     {"error", ok ? json(nullptr) : json("rename_udm failed (code " + std::to_string(rc) + ")")},
                 });
             } catch (const std::exception& e) {

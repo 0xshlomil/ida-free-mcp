@@ -30,3 +30,4 @@ void register_memory_tools(mcp::McpProtocol& mcp);
 void register_modify_tools(mcp::McpProtocol& mcp);
 void register_type_tools(mcp::McpProtocol& mcp);
 void register_stack_tools(mcp::McpProtocol& mcp);
+void register_decompiler_tools(mcp::McpProtocol& mcp);

@@ -308,7 +308,7 @@ static json tool_set_type(const json& params) {
             if (!tif.get_named_type(nullptr, type_str.c_str())) {
                 // Try parsing as C declaration
                 qstring parsed_name;
-                if (!parse_decl(&tif, &parsed_name, nullptr, type_str.c_str(), PT_SIL)) {
+                if (!parse_decl(&tif, &parsed_name, nullptr, type_str.c_str(), PT_SIL | PT_SEMICOLON)) {
                     results.push_back({
                         {"edit", edit}, {"ok", false},
                         {"error", "Failed to parse type: " + type_str},

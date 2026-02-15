@@ -8,6 +8,7 @@
 #include <idp.hpp>
 #include <loader.hpp>
 #include <kernwin.hpp>
+#include <hexrays.hpp>
 
 #include <memory>
 #include <string>
@@ -49,7 +50,12 @@ struct McpPlugmod : public plugmod_t {
         register_modify_tools(*protocol);
         register_type_tools(*protocol);
         register_stack_tools(*protocol);
+        register_decompiler_tools(*protocol);
         register_resources(*protocol);
+
+        // Log decompiler availability
+        bool has_hexrays = init_hexrays_plugin();
+        msg("[MCP] Hex-Rays decompiler: %s\n", has_hexrays ? "available" : "not available");
 
         // Set download base URL
         char url_buf[256];

@@ -36,6 +36,7 @@ if(BUILD_PLUGIN)
         src/tools/modify.cpp
         src/tools/types.cpp
         src/tools/stack.cpp
+        src/tools/decompiler.cpp
         src/resources/resources.cpp
     )
 
