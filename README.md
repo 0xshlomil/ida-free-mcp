@@ -1,26 +1,85 @@
 # IDA Free MCP
 
-A native C++ IDA Pro plugin that exposes IDA's reverse engineering capabilities through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/), enabling LLMs to analyze binaries directly inside IDA.
+A native C++ plugin that brings AI into your IDA reverse engineering workflow.
 
-The plugin runs an HTTP server on `127.0.0.1:13337` within IDA's process, giving AI assistants access to disassembly, decompilation, cross-references, type information, memory, and more — all through a standard MCP interface.
+It exposes IDA's analysis capabilities through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — a standard interface that lets LLMs talk to tools. The plugin spins up an HTTP server on `127.0.0.1:13337` right inside IDA's process, so your AI assistant can read disassembly, decompile functions, follow cross-references, rename variables, patch bytes, and much more — all without leaving your IDA session.
+
+Think of it as giving your LLM a seat next to you at the disassembler.
 
 ## Features
 
-### Tools (32 total)
+### Tools
 
-**Core** — `int_convert`, `lookup_funcs`, `list_funcs`, `list_globals`, `imports`, `find_regex`
+34 tools organized into 7 groups. Every tool runs on IDA's main thread (via `execute_sync`) so you never have to worry about thread safety.
 
-**Analysis** — `disasm`, `xrefs_to`, `callees`, `find_bytes`, `basic_blocks`, `find`, `export_funcs`, `callgraph`, `xrefs_to_field`
+#### Core
 
-**Memory** — `get_bytes`, `get_string`, `get_int`, `get_global_value`, `patch`, `put_int`
+| Tool | What it does |
+|---|---|
+| `int_convert` | Convert numbers between hex, decimal, octal, and binary |
+| `lookup_funcs` | Get functions by address or name (auto-detects which you meant) |
+| `list_funcs` | List functions in the database |
+| `list_globals` | List global variables |
+| `imports` | List imported functions |
+| `find_regex` | Search strings in the database by regex (case-insensitive) |
 
-**Modify** — `set_comments`, `rename`, `patch_asm`, `define_func`, `define_code`, `undefine`
+#### Analysis
 
-**Types** — `declare_type`, `read_struct`, `search_structs`, `set_type`
+| Tool | What it does |
+|---|---|
+| `disasm` | Disassemble a function to assembly instructions |
+| `decompile` | Decompile a function to pseudocode (requires Hex-Rays) |
+| `xrefs_to` | Get cross-references to specified addresses |
+| `xrefs_to_field` | Get cross-references to a structure field |
+| `callees` | Get functions called by a function |
+| `callgraph` | Build a call graph from root functions |
+| `basic_blocks` | Get control flow graph basic blocks for a function |
+| `find` | Unified search — strings, immediates, data refs, code refs |
+| `find_bytes` | Search for byte patterns with wildcards (e.g. `48 8B ? ?`) |
+| `export_funcs` | Export function data in various formats |
 
-**Stack** — `stack_frame`, `declare_stack`, `delete_stack`
+#### Memory
+
+| Tool | What it does |
+|---|---|
+| `get_bytes` | Read raw bytes from memory addresses |
+| `get_string` | Read strings from memory addresses |
+| `get_int` | Read integer values with type specification |
+| `get_global_value` | Read global variable values by name or address |
+| `patch` | Patch bytes in memory |
+| `put_int` | Write integer values to memory |
+
+#### Modify
+
+| Tool | What it does |
+|---|---|
+| `set_comments` | Set comments at addresses (disassembly and decompiler views) |
+| `rename` | Rename functions, globals, locals, and stack variables |
+| `patch_asm` | Assemble and patch instructions at addresses |
+| `define_func` | Define a function at an address |
+| `define_code` | Convert bytes to code (create an instruction) |
+| `undefine` | Undefine items back to raw bytes |
+
+#### Types
+
+| Tool | What it does |
+|---|---|
+| `declare_type` | Parse C type declarations and add them to the type library |
+| `read_struct` | Read a structure definition, optionally with memory values |
+| `search_structs` | Search structures by name (case-insensitive substring match) |
+| `set_type` | Apply a type to a function, global, or stack variable |
+
+#### Stack
+
+| Tool | What it does |
+|---|---|
+| `stack_frame` | Get stack frame variables for a function |
+| `declare_stack` | Create a stack variable in a function frame |
+| `delete_stack` | Delete a stack variable from a function frame |
 
 ### Resources
+
+MCP resources give the LLM read access to IDA's database state without calling tools.
 
 | Resource | Description |
 |---|---|
@@ -100,7 +159,7 @@ copy build\plugin\ida_mcp.dll "%APPDATA%\Hex-Rays\IDA Pro\plugins\"
 4. Connect your MCP client to `http://127.0.0.1:13337/mcp`
 5. Press **Ctrl+Alt+M** again to stop the server
 
-### Claude
+### Connecting an MCP client
 
 #### Claude Code
 
@@ -108,40 +167,18 @@ copy build\plugin\ida_mcp.dll "%APPDATA%\Hex-Rays\IDA Pro\plugins\"
 claude mcp add --transport http ida-mcp http://127.0.0.1:13337/mcp
 ```
 
-Or add it to `.mcp.json` in your project root:
+#### Any MCP client (Claude Desktop, Cursor, Windsurf, etc.)
 
-```json
-{
-  "mcpServers": {
-    "ida-mcp": {
-      "url": "http://127.0.0.1:13337/mcp"
-    }
-  }
-}
-```
+Add to your MCP config file — the location depends on your client:
 
-#### Claude Desktop
+| Client | Config file |
+|---|---|
+| Claude Code | `.mcp.json` in your project root |
+| Claude Desktop (macOS) | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Claude Desktop (Windows) | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Cursor | `.cursor/mcp.json` in your project root |
 
-Add the following to your Claude Desktop config file:
-
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "ida-mcp": {
-      "url": "http://127.0.0.1:13337/mcp"
-    }
-  }
-}
-```
-
-Then restart Claude Desktop.
-
-### Other MCP clients
-
-Add to your MCP client config:
+The config is the same for all of them:
 
 ```json
 {
