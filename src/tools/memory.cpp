@@ -555,12 +555,12 @@ void register_memory_tools(McpProtocol& mcp) {
                      {{"type", "array"}, {"items", {{"type", "object"}, {"properties", {
                          {"addr", {{"type", "string"}, {"description", "Address to write to"}}},
                          {"ty", {{"type", "string"}, {"description", "Type: [u|i][8|16|32|64][le|be]"}}},
-                         {"value", {{"description", "Integer value to write (string or number)"}}},
+                         {"value", {{"type", {"string", "integer"}}, {"description", "Integer value to write (string or number)"}}},
                      }}, {"required", json::array({"addr", "ty", "value"})}}}},
                      {{"type", "object"}, {"properties", {
                          {"addr", {{"type", "string"}, {"description", "Address to write to"}}},
                          {"ty", {{"type", "string"}, {"description", "Type: [u|i][8|16|32|64][le|be]"}}},
-                         {"value", {{"description", "Integer value to write (string or number)"}}},
+                         {"value", {{"type", {"string", "integer"}}, {"description", "Integer value to write (string or number)"}}},
                      }}, {"required", json::array({"addr", "ty", "value"})}},
                  })},
                  {"description", "Integer write operation(s)"},

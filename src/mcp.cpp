@@ -55,6 +55,8 @@ McpProtocol::McpProtocol(const std::string& name, const std::string& version)
         [this](const json& p) { return mcp_resources_read(p); });
     registry_.register_method("notifications/cancelled",
         [this](const json& p) { return mcp_notifications_cancelled(p); });
+    registry_.register_method("notifications/initialized",
+        [](const json&) { return json::object(); });
 }
 
 void McpProtocol::register_tool(const ToolSchema& schema, ToolHandler handler) {
