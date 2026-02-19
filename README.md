@@ -10,7 +10,7 @@ Think of it as giving your LLM a seat next to you at the disassembler.
 
 ### Tools
 
-34 tools organized into 7 groups. Every tool runs on IDA's main thread (via `execute_sync`) so you never have to worry about thread safety.
+37 tools organized into 7 groups. Every tool runs on IDA's main thread (via `execute_sync`) so you never have to worry about thread safety.
 
 #### Core
 
@@ -28,7 +28,6 @@ Think of it as giving your LLM a seat next to you at the disassembler.
 | Tool | What it does |
 |---|---|
 | `disasm` | Disassemble a function to assembly instructions |
-| `decompile` | Decompile a function to pseudocode (requires Hex-Rays) |
 | `xrefs_to` | Get cross-references to specified addresses |
 | `xrefs_to_field` | Get cross-references to a structure field |
 | `callees` | Get functions called by a function |
@@ -76,6 +75,14 @@ Think of it as giving your LLM a seat next to you at the disassembler.
 | `stack_frame` | Get stack frame variables for a function |
 | `declare_stack` | Create a stack variable in a function frame |
 | `delete_stack` | Delete a stack variable from a function frame |
+
+#### Decompiler
+
+| Tool | What it does |
+|---|---|
+| `decompile` | Decompile a function to pseudocode (works in both IDA Pro and IDA Free) |
+| `hexrays_diag` | Check Hex-Rays decompiler SDK status and loaded plugins |
+| `debug_mode` | Toggle verbose debug logging to the IDA console |
 
 ### Resources
 

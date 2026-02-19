@@ -23,7 +23,7 @@ cmake -S . -B build/plugin -DBUILD_PLUGIN=ON -DBUILD_TESTS=OFF -DIDASDK=../idasd
 cmake --build build/plugin -j$(nproc)
 
 # Install plugin to IDA
-cp build/plugin/ida_mcp.so ~/.ida-free-pc-9.2/plugins/
+cp build/plugin/ida_mcp.so ~/ida-free-9.3/plugins/
 ```
 
 The convenience script `build.sh` wraps these steps.
@@ -39,7 +39,7 @@ JSON-RPC 2.0 (jsonrpc.h)  →  MCP Protocol (mcp.h)  →  HTTP Server (server.h)
 
 **Thread synchronization** (`sync.h`): All IDA SDK calls must run on the main thread. `execute_on_main_thread()` uses IDA's `execute_sync(MFF_WRITE)` with timeout and cancellation support. Tool handlers are wrapped with `ida_sync_tool()` to enforce this.
 
-**Tool groups** (each in `src/tools/`): core, analysis, memory, modify, types, stack. Each file exports a `register_*_tools(McpProtocol&)` function called from `plugin.cpp`.
+**Tool groups** (each in `src/tools/`): core, analysis, memory, modify, types, stack, decompiler. Each file exports a `register_*_tools(McpProtocol&)` function called from `plugin.cpp`.
 
 **Resources** (`src/resources/`): MCP resources like `ida://idb/metadata` and `ida://functions/{pattern}`.
 
@@ -50,6 +50,8 @@ JSON-RPC 2.0 (jsonrpc.h)  →  MCP Protocol (mcp.h)  →  HTTP Server (server.h)
 - **`ida_pre.h` must be included before IDA headers**: It wraps `<ida.hpp>` and `#undef`s dangerous macros (`snprintf`, `getenv`, etc.) that IDA's `pro.h` redefines. This allows third-party headers (json, httplib) to compile. In plugin code, use IDA-prefixed functions (`qsnprintf`, `qgetenv`) instead.
 
 - **`IDA_MCP_TESTING` define**: When set, IDA SDK includes are disabled so tests compile standalone. Tests only cover non-IDA code (jsonrpc, utils).
+
+- **Decompiler uses GUI integration**: The `decompile` tool triggers decompilation via `process_ui_action("hx:GenPseudo")`, then reads pseudocode by probing `get_viewer_user_data()` as a `vdui_t*` to access `cfunc_t::sv` (strvec_t) directly using core SDK types. This approach works in both IDA Pro and IDA Free. A `place_t` iteration fallback is also available.
 
 - **All dependencies are vendored** in `deps/`: nlohmann/json (`json.hpp`), cpp-httplib (`httplib.h`), doctest (`doctest.h`). No package manager.
 
