@@ -4,6 +4,7 @@
 
 #include "registry.h"
 #include "../utils.h"
+#include "../dialog_suppress.h"
 
 #ifndef IDA_MCP_TESTING
 #include <idp.hpp>
@@ -365,6 +366,8 @@ static json tool_imports(const json& params) {
 // ═══════════════════════════════════════════════════════════════════
 
 static json tool_find_regex(const json& params) {
+    idasync::SuppressDialogs suppress_guard;
+
     std::string pattern_str = params.value("pattern", "");
     int limit = params.value("limit", 30);
     int offset_skip = params.value("offset", 0);

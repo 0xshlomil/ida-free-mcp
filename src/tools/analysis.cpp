@@ -4,6 +4,7 @@
 
 #include "registry.h"
 #include "../utils.h"
+#include "../dialog_suppress.h"
 
 #ifndef IDA_MCP_TESTING
 #include <idp.hpp>
@@ -342,6 +343,8 @@ static json tool_callees(const json& params) {
 // ═══════════════════════════════════════════════════════════════════
 
 static json tool_find_bytes(const json& params) {
+    idasync::SuppressDialogs suppress_guard;
+
     auto patterns = utils::normalize_list_input(params.value("patterns", json()));
     int limit = params.value("limit", 1000);
     int offset_skip = params.value("offset", 0);
@@ -515,6 +518,8 @@ static json tool_basic_blocks(const json& params) {
 // ═══════════════════════════════════════════════════════════════════
 
 static json tool_find(const json& params) {
+    idasync::SuppressDialogs suppress_guard;
+
     std::string type = params.value("type", "");
     auto targets = utils::normalize_list_input(params.value("targets", json()));
     int limit = params.value("limit", 1000);

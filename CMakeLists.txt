@@ -29,6 +29,7 @@ if(BUILD_PLUGIN)
         src/server.cpp
         src/mcp.cpp
         src/sync.cpp
+        src/dialog_suppress.cpp
         src/utils.cpp
         src/tools/core.cpp
         src/tools/analysis.cpp

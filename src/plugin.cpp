@@ -3,6 +3,7 @@
 #include "plugin.h"
 #include "mcp.h"
 #include "server.h"
+#include "dialog_suppress.h"
 #include "tools/registry.h"
 #include "resources/resources.h"
 #include <idp.hpp>
@@ -30,6 +31,7 @@ struct McpPlugmod : public plugmod_t {
         if (http_server) {
             http_server->stop();
         }
+        idasync::uninstall_dialog_hook();
     }
 
     bool idaapi run(size_t) override {
@@ -40,6 +42,9 @@ struct McpPlugmod : public plugmod_t {
             protocol.reset();
             return true;
         }
+
+        // Install dialog auto-dismiss hook for search tools
+        idasync::install_dialog_hook();
 
         // Create protocol and register everything
         protocol = std::make_unique<mcp::McpProtocol>("ida-pro-mcp", IDA_MCP_VERSION);
