@@ -36,7 +36,8 @@ public:
     ~McpHttpServer();
 
     /// Start the server on the given host:port in a background thread.
-    bool start(const std::string& host, int port);
+    /// If the port is in use, tries successive ports up to max_retries times.
+    bool start(const std::string& host, int port, int max_retries = 10);
 
     /// Stop the server.
     void stop();

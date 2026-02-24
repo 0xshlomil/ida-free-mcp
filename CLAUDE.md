@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-IDA Free MCP is a C++17 IDA Pro plugin that exposes IDA's analysis capabilities via an MCP (Model Context Protocol) server over HTTP, enabling LLMs to perform reverse engineering tasks. It runs an HTTP server on `127.0.0.1:13337` inside IDA's process.
+IDA Free MCP is a C++17 IDA Pro plugin that exposes IDA's analysis capabilities via an MCP (Model Context Protocol) server over HTTP, enabling LLMs to perform reverse engineering tasks. It runs an HTTP server on `127.0.0.1:13337` (default) inside IDA's process. Multiple IDA instances are supported — the server auto-increments the port if already in use and writes instance info to `~/.ida-mcp/instances/<pid>.json`.
 
 ## Build Commands
 
@@ -61,8 +61,9 @@ JSON-RPC 2.0 (jsonrpc.h)  →  MCP Protocol (mcp.h)  →  HTTP Server (server.h)
 
 ## Environment Variables
 
+- `IDA_MCP_PORT`: Base port for the HTTP server (default `13337`). If the port is in use, the server tries up to 10 successive ports.
 - `IDA_MCP_TOOL_TIMEOUT_SEC`: Tool execution timeout (default varies)
-- `IDA_MCP_URL`: Download base URL (default `http://127.0.0.1:13337`)
+- `IDA_MCP_URL`: Download base URL (default `http://127.0.0.1:<actual_port>`)
 
 ## HTTP Routes
 
