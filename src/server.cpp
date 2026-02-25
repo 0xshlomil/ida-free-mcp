@@ -108,35 +108,55 @@ McpHttpServer::~McpHttpServer() {
     stop();
 }
 
-bool McpHttpServer::start(const std::string& host, int port) {
+bool McpHttpServer::start(const std::string& host, int port, int max_retries) {
     if (running_.load()) {
         LOG_MSG("[MCP] Server is already running\n");
         return false;
     }
 
-    server_ = std::make_unique<httplib::Server>();
-    setup_routes();
+    // Try successive ports until one binds successfully.
+    // A failed bind_to_port() marks the httplib::Server as decommissioned,
+    // so we must create a fresh instance for each attempt.
+    for (int attempt = 0; attempt <= max_retries; ++attempt) {
+        int try_port = port + attempt;
 
-    port_ = port;
-    running_.store(true);
+        server_ = std::make_unique<httplib::Server>();
+        setup_routes();
 
-    server_thread_ = std::thread([this, host, port]() {
-        LOG_MSG("[MCP] Server started:\n");
-        LOG_MSG("  Streamable HTTP: http://%s:%d/mcp\n", host.c_str(), port);
-        LOG_MSG("  SSE: http://%s:%d/sse\n", host.c_str(), port);
-
-        if (!server_->listen(host, port)) {
-            if (running_.load()) {
-                LOG_MSG("[MCP] Server failed to start on %s:%d\n",
-                        host.c_str(), port);
+        if (!server_->bind_to_port(host, try_port)) {
+            if (attempt < max_retries) {
+                LOG_MSG("[MCP] Port %d in use, trying %d...\n", try_port, try_port + 1);
             }
+            server_.reset();
+            continue;
         }
-        running_.store(false);
-    });
 
-    // Give the server a moment to bind
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    return running_.load();
+        // Bind succeeded
+        port_ = try_port;
+        running_.store(true);
+
+        server_thread_ = std::thread([this, host, try_port]() {
+            LOG_MSG("[MCP] Server started on port %d:\n", try_port);
+            LOG_MSG("  Streamable HTTP: http://%s:%d/mcp\n", host.c_str(), try_port);
+            LOG_MSG("  SSE: http://%s:%d/sse\n", host.c_str(), try_port);
+
+            if (!server_->listen_after_bind()) {
+                if (running_.load()) {
+                    LOG_MSG("[MCP] Server listen failed on %s:%d\n",
+                            host.c_str(), try_port);
+                }
+            }
+            running_.store(false);
+        });
+
+        // Give the server a moment to start listening
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        return running_.load();
+    }
+
+    LOG_MSG("[MCP] Failed to bind to any port in range %d-%d\n",
+            port, port + max_retries);
+    return false;
 }
 
 void McpHttpServer::stop() {

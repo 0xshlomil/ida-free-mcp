@@ -118,6 +118,8 @@ MCP resources give the LLM read access to IDA's database state without calling t
 
 ### Quick start
 
+**Linux / macOS:**
+
 ```bash
 # Set IDA SDK path (default: ../idasdk/src)
 export IDASDK=/path/to/idasdk
@@ -126,21 +128,46 @@ export IDASDK=/path/to/idasdk
 ./build.sh
 ```
 
+**Windows** (from a Developer Command Prompt or Developer PowerShell):
+
+```bat
+:: Set IDA SDK path (default: ..\idasdk\src)
+set IDASDK=C:\path\to\idasdk
+
+:: Build everything, run tests, and install
+build.bat
+```
+
 ### Manual build
 
 **Tests only** (no IDA SDK required):
 
 ```bash
+# Linux / macOS
 cmake -S . -B build/tests -DBUILD_PLUGIN=OFF -DBUILD_TESTS=ON
 cmake --build build/tests -j$(nproc)
 ./build/tests/ida_mcp_tests
 ```
 
+```bat
+:: Windows
+cmake -S . -B build\tests -DBUILD_PLUGIN=OFF -DBUILD_TESTS=ON
+cmake --build build\tests --config Release -j %NUMBER_OF_PROCESSORS%
+build\tests\Release\ida_mcp_tests.exe
+```
+
 **Plugin only**:
 
 ```bash
+# Linux / macOS
 cmake -S . -B build/plugin -DBUILD_PLUGIN=ON -DBUILD_TESTS=OFF -DIDASDK=/path/to/idasdk
 cmake --build build/plugin -j$(nproc)
+```
+
+```bat
+:: Windows
+cmake -S . -B build\plugin -DBUILD_PLUGIN=ON -DBUILD_TESTS=OFF -DIDASDK=C:\path\to\idasdk
+cmake --build build\plugin --config Release -j %NUMBER_OF_PROCESSORS%
 ```
 
 ### Install
@@ -153,9 +180,11 @@ cp build/plugin/ida_mcp.so ~/ida-free-9.3/plugins/
 
 # macOS
 cp build/plugin/ida_mcp.dylib ~/ida-free-9.3/plugins/
+```
 
-# Windows
-copy build\plugin\ida_mcp.dll "%APPDATA%\Hex-Rays\IDA Pro\plugins\"
+```bat
+:: Windows
+copy build\plugin\Release\ida_mcp.dll "%USERPROFILE%\ida-free-9.3\plugins\"
 ```
 
 ## Usage

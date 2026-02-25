@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x64
+            artifact: ida_mcp.so
+          - os: windows-latest
+            name: windows-x64
+            artifact: ida_mcp.dll
+          - os: macos-latest
+            name: macos-x64
+            artifact: ida_mcp.dylib
+
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Build tests
+        run: |
+          cmake -S . -B build/tests -DBUILD_PLUGIN=OFF -DBUILD_TESTS=ON
+          cmake --build build/tests --config Release
+
+      - name: Run tests
+        working-directory: build/tests
+        run: ctest -C Release --output-on-failure
+
+      - name: Build plugin
+        run: |
+          cmake -S . -B build/plugin -DBUILD_PLUGIN=ON -DBUILD_TESTS=OFF -DIDASDK=idasdk/src
+          cmake --build build/plugin --config Release
+
+      - name: Upload plugin to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # MSVC puts binaries in Release/ subdirectory
+          if [ -f "build/plugin/Release/${{ matrix.artifact }}" ]; then
+            src="build/plugin/Release/${{ matrix.artifact }}"
+          else
+            src="build/plugin/${{ matrix.artifact }}"
+          fi
+          # Get file extension
+          ext="${{ matrix.artifact }}"
+          ext=".${ext##*.}"
+          dest="ida_mcp-${{ matrix.name }}${ext}"
+          cp "$src" "$dest"
+          gh release upload ${{ github.ref_name }} "$dest" --clobber

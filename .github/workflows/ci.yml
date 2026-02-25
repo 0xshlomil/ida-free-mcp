@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux (GCC)
+          - os: windows-latest
+            name: Windows (MSVC)
+          - os: macos-latest
+            name: macOS (Clang)
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Build tests
+        run: |
+          cmake -S . -B build/tests -DBUILD_PLUGIN=OFF -DBUILD_TESTS=ON
+          cmake --build build/tests --config Release
+
+      - name: Run tests
+        working-directory: build/tests
+        run: ctest -C Release --output-on-failure
+
+      - name: Build plugin
+        run: |
+          cmake -S . -B build/plugin -DBUILD_PLUGIN=ON -DBUILD_TESTS=OFF -DIDASDK=idasdk/src
+          cmake --build build/plugin --config Release

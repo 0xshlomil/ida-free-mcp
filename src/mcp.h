@@ -119,7 +119,7 @@ public:
 private:
     std::string name_;
     std::string version_;
-    std::string download_base_url_ = "http://127.0.0.1:13337";
+    std::string download_base_url_ = "http://127.0.0.1:13337"; // Overridden by plugin with actual port
     std::string protocol_version_ = "2025-06-18";
 
     // Tool management
