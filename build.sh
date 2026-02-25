@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IDASDK="${IDASDK:-../idasdk/src}"
+IDASDK="${IDASDK:-$SCRIPT_DIR/idasdk/src}"
 BUILD_DIR="$SCRIPT_DIR/build"
 JOBS="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 

@@ -5,6 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Use dynamic CRT on MSVC (must match IDA's runtime)
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+endif()
+
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_PLUGIN "Build IDA plugin (requires IDA SDK)" ON)
 
@@ -73,12 +78,24 @@ if(BUILD_PLUGIN)
         CPPHTTPLIB_NO_OPENSSL
     )
 
+    # MSVC-specific compile options
+    if(MSVC)
+        target_compile_options(ida_mcp PRIVATE
+            /W3 /utf-8 /EHsc /permissive-
+            /wd4267  # size_t to int conversion (IDA SDK / vendor headers)
+            /wd4244  # narrowing conversions
+            /wd4996  # deprecated CRT functions
+        )
+    endif()
+
     if(IDASDK_LIBRARIES)
         target_link_libraries(ida_mcp PRIVATE ${IDASDK_LIBRARIES})
     endif()
 
     # Platform-specific link flags
-    if(NOT WIN32)
+    if(WIN32)
+        target_link_libraries(ida_mcp PRIVATE ws2_32)
+    else()
         target_link_libraries(ida_mcp PRIVATE pthread)
         if(NOT APPLE)
             # Linux: allow undefined symbols (resolved by IDA at load time)
@@ -119,7 +136,16 @@ if(BUILD_TESTS)
         CPPHTTPLIB_NO_EXCEPTIONS
     )
 
-    if(NOT WIN32)
+    if(MSVC)
+        target_compile_options(ida_mcp_tests PRIVATE
+            /W3 /utf-8 /EHsc /permissive-
+            /wd4267 /wd4244 /wd4996
+        )
+    endif()
+
+    if(WIN32)
+        target_link_libraries(ida_mcp_tests PRIVATE ws2_32)
+    else()
         target_link_libraries(ida_mcp_tests PRIVATE pthread)
     endif()
 

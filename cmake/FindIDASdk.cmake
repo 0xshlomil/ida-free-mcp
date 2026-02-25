@@ -38,17 +38,33 @@ else()
     set(_IDA_LIB_SUFFIX ".so")
 endif()
 
-# IDA 9.0+ uses x64_<platform>_64 for 64-bit plugins
-set(IDASDK_LIB_DIR "${IDASDK}/lib/x64_${_IDA_PLATFORM}_gcc_64")
+# Determine architecture prefix
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|ARM64")
+    set(_IDA_ARCH "arm64")
+else()
+    set(_IDA_ARCH "x64")
+endif()
+
+# IDA 9.0+ uses {arch}_{platform}_{compiler}_64 for 64-bit plugins
+# Try compiler-specific directories first, then fall back to generic
+if(WIN32 AND MSVC)
+    set(IDASDK_LIB_DIR "${IDASDK}/lib/${_IDA_ARCH}_${_IDA_PLATFORM}_vc_64")
+elseif(APPLE)
+    set(IDASDK_LIB_DIR "${IDASDK}/lib/${_IDA_ARCH}_${_IDA_PLATFORM}_clang_64")
+endif()
+
+if(NOT IDASDK_LIB_DIR OR NOT EXISTS "${IDASDK_LIB_DIR}")
+    set(IDASDK_LIB_DIR "${IDASDK}/lib/${_IDA_ARCH}_${_IDA_PLATFORM}_gcc_64")
+endif()
 
 # Fallback to alternative directory names
 if(NOT EXISTS "${IDASDK_LIB_DIR}")
-    set(IDASDK_LIB_DIR "${IDASDK}/lib/x64_${_IDA_PLATFORM}_64")
+    set(IDASDK_LIB_DIR "${IDASDK}/lib/${_IDA_ARCH}_${_IDA_PLATFORM}_64")
 endif()
 
 if(NOT EXISTS "${IDASDK_LIB_DIR}")
     # Try to find any matching lib dir
-    file(GLOB _IDA_LIB_DIRS "${IDASDK}/lib/x64_${_IDA_PLATFORM}*")
+    file(GLOB _IDA_LIB_DIRS "${IDASDK}/lib/${_IDA_ARCH}_${_IDA_PLATFORM}*")
     if(_IDA_LIB_DIRS)
         list(GET _IDA_LIB_DIRS 0 IDASDK_LIB_DIR)
     endif()

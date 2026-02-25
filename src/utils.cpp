@@ -190,7 +190,9 @@ json pattern_filter(const json& data, const std::string& pattern,
             auto flags = std::regex_constants::ECMAScript;
             for (char ch : flag_str) {
                 if (ch == 'i') flags |= std::regex_constants::icase;
+#ifdef __cpp_lib_regex_multiline
                 if (ch == 'm') flags |= std::regex_constants::multiline;
+#endif
             }
             // Default to case-insensitive if no flags
             if (flag_str.empty()) flags |= std::regex_constants::icase;

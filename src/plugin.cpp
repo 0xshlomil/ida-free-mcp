@@ -208,6 +208,9 @@ static plugmod_t* idaapi init() {
     return new McpPlugmod();
 }
 
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
 plugin_t PLUGIN = {
     IDP_INTERFACE_VERSION,
     PLUGIN_MULTI,                  // plugmod_t-based plugin (init returns plugmod_t*)
