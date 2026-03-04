@@ -95,6 +95,12 @@ static json tool_hexrays_diag(const json&) {
     }
     result["plugins"] = all_plugins;
 
+    // Add guidance for LLMs interpreting this output
+    if (!result.value("init_hexrays_plugin", false)) {
+        result["note"] = "Hex-Rays SDK is not initialized. This is normal for IDA Free. "
+                         "The 'decompile' tool uses GUI-based decompilation and works without the SDK.";
+    }
+
     dbg("[MCP] hexrays_diag: done\n");
     return result;
 }
@@ -314,14 +320,17 @@ void register_decompiler_tools(McpProtocol& mcp) {
 
     mcp.register_tool(
         {"hexrays_diag",
-         "Check Hex-Rays decompiler SDK status: init_hexrays_plugin(), get_hexdsp(), loaded plugins",
+         "Check Hex-Rays decompiler SDK status (init_hexrays_plugin, hexdsp, loaded plugins). "
+         "NOTE: On IDA Free these will report 'not initialized' — this is expected and does NOT "
+         "affect the 'decompile' tool, which uses GUI-based decompilation instead of the SDK API.",
          SchemaBuilder().build()},
         ida_sync_tool(tool_hexrays_diag)
     );
 
     mcp.register_tool(
         {"decompile",
-         "Decompile a function to pseudocode",
+         "Decompile a function to pseudocode. Works on both IDA Pro and IDA Free — uses GUI-based "
+         "decompilation (F5) and reads output from the pseudocode widget, no Hex-Rays SDK required.",
          SchemaBuilder()
              .string_prop("addr", "Function address (hex or decimal)")
              .build()},
