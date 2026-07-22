@@ -12,6 +12,7 @@
 #include <lines.hpp>
 #include <loader.hpp>
 #include <moves.hpp>
+#include <name.hpp>
 #endif
 
 #include <string>
@@ -108,20 +109,6 @@ static json tool_hexrays_diag(const json&) {
 // ═══════════════════════════════════════════════════════════════════
 // Tool: decompile - GUI-based decompilation
 // ═══════════════════════════════════════════════════════════════════
-
-// Find the first open pseudocode widget (Pseudocode-A through Z)
-static TWidget* find_pseudocode_widget(std::string& out_name) {
-    for (char c = 'A'; c <= 'Z'; c++) {
-        char buf[32];
-        qsnprintf(buf, sizeof(buf), "Pseudocode-%c", c);
-        TWidget *w = find_widget(buf);
-        if (w) {
-            out_name = buf;
-            return w;
-        }
-    }
-    return nullptr;
-}
 
 // Try to read pseudocode via vdui_t probing (Method A).
 // get_viewer_user_data() may return the vdui_t* directly.
@@ -239,6 +226,13 @@ static json tool_decompile(const json& params) {
         // Step 1: Navigate to the function
         jumpto(pfn->start_ea);
 
+        // Activate the disassembly view BEFORE F5. hx:GenPseudo decompiles the
+        // current address of the *focused* widget — if a Pseudocode widget is the
+        // active one (e.g. left over from a previous call), F5 just re-runs on ITS
+        // function and never refreshes to ours, which is the stale-output bug.
+        if (TWidget *dv = find_widget("IDA View-A"))
+            activate_widget(dv, true);
+
         // Step 2: Trigger F5 decompilation via GUI action
         bool acted = process_ui_action("hx:GenPseudo");
         dbg("[MCP] decompile: hx:GenPseudo = %d\n", acted);
@@ -250,51 +244,54 @@ static json tool_decompile(const json& params) {
             };
         }
 
-        // Step 3: Find the pseudocode widget
-        std::string wname;
-        TWidget *w = find_pseudocode_widget(wname);
-        if (!w) {
-            return {
-                {"addr", utils::hex_str(pfn->start_ea)}, {"ok", false},
-                {"error", "No pseudocode window found after decompilation"},
-            };
+        // Steps 3+4: Find the pseudocode widget showing THIS function and read it.
+        //
+        // On IDA Pro, Method A (vdui_t/cfunc probe) validates by cfunc_t::entry_ea.
+        // But IDA Free's cloud decompiler (hexcx) does NOT populate cfunc_t/vdui_t, so
+        // there we must read the widget text (Method B) and validate it belongs to our
+        // function by checking the decompiled text contains the function's name — this
+        // is what stops a stale widget (on another function) from being returned, which
+        // was the original bug. The cloud decompile is also asynchronous, so we retry
+        // briefly to let the freshly-generated pseudocode land in the widget.
+        qstring fname;
+        get_func_name(&fname, pfn->start_ea);
+
+        for (int attempt = 0; attempt < 40; attempt++) {
+            for (char c = 'A'; c <= 'Z'; c++) {
+                char buf[32];
+                qsnprintf(buf, sizeof(buf), "Pseudocode-%c", c);
+                TWidget *w = find_widget(buf);
+                if (!w) continue;
+
+                // Method A: cfunc probe (IDA Pro — self-validates entry_ea).
+                std::string pseudocode;
+                int line_count = 0;
+                if (read_pseudocode_via_vdui(w, pfn->start_ea, pseudocode, line_count)) {
+                    return {
+                        {"addr", utils::hex_str(pfn->start_ea)},
+                        {"pseudocode", pseudocode}, {"lines", line_count}, {"ok", true},
+                    };
+                }
+
+                // Method B: text iteration (IDA Free). Accept only if the text names
+                // this function, so a stale widget on a different function is skipped.
+                std::string t;
+                int tl = 0;
+                if (read_pseudocode_via_places(w, t, tl)) {
+                    if (fname.empty() || t.find(fname.c_str()) != std::string::npos) {
+                        return {
+                            {"addr", utils::hex_str(pfn->start_ea)},
+                            {"pseudocode", t}, {"lines", tl}, {"ok", true},
+                        };
+                    }
+                }
+            }
+            qsleep(50); // let the async cloud decompile populate the widget, then retry
         }
 
-        dbg("[MCP] decompile: widget '%s'\n", wname.c_str());
-
-        // Step 4: Read pseudocode text
-        std::string pseudocode;
-        int line_count = 0;
-
-        // Method A: vdui_t probing (fastest, most reliable)
-        if (read_pseudocode_via_vdui(w, pfn->start_ea, pseudocode, line_count)) {
-            return {
-                {"addr", utils::hex_str(pfn->start_ea)},
-                {"pseudocode", pseudocode},
-                {"lines", line_count},
-                {"ok", true},
-            };
-        }
-
-        dbg("[MCP] decompile: vdui_t probe failed, trying place iteration\n");
-
-        // Method B: place-based iteration (fallback)
-        if (read_pseudocode_via_places(w, pseudocode, line_count)) {
-            return {
-                {"addr", utils::hex_str(pfn->start_ea)},
-                {"pseudocode", pseudocode},
-                {"lines", line_count},
-                {"ok", true},
-            };
-        }
-
-        // Both methods failed
-        void *ud = get_viewer_user_data(w);
         return {
             {"addr", utils::hex_str(pfn->start_ea)}, {"ok", false},
-            {"error", "Could not read pseudocode from widget"},
-            {"widget", wname},
-            {"user_data", ud ? ptr_hex((uintptr_t)ud) : "null"},
+            {"error", "No pseudocode widget for this function after decompilation"},
         };
 
     } catch (const std::exception& e) {
