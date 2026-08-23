@@ -38,8 +38,10 @@ else()
     set(_IDA_LIB_SUFFIX ".so")
 endif()
 
-# Determine architecture prefix
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|ARM64")
+# Determine architecture prefix (override with -DIDA_ARCH=arm64|x64 for multi-arch builds)
+if(DEFINED IDA_ARCH)
+    set(_IDA_ARCH "${IDA_ARCH}")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64|ARM64")
     set(_IDA_ARCH "arm64")
 else()
     set(_IDA_ARCH "x64")
