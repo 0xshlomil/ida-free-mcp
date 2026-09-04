@@ -122,7 +122,7 @@ struct McpPlugmod : public plugmod_t {
     std::unique_ptr<mcp::McpProtocol> protocol;
     std::unique_ptr<server::McpHttpServer> http_server;
 
-    static constexpr const char* HOST = "127.0.0.1";
+    static constexpr const char* HOST = "0.0.0.0";
     static constexpr int DEFAULT_PORT = 13337;
 
     McpPlugmod() = default;

@@ -8,7 +8,7 @@ It exposes IDA's analysis capabilities through the [Model Context Protocol (MCP)
 
 1. Open a binary in IDA
 2. **Edit > Plugins > MCP** (or **Ctrl+Alt+M**) to start the server
-3. Connect your MCP client to `http://127.0.0.1:13337/mcp`
+3. Connect your MCP client to `http://0.0.0.0:13337/mcp`
 4. Press **Ctrl+Alt+M** again to stop
 
 ### Connecting an MCP client
