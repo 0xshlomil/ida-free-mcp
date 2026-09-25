@@ -233,6 +233,21 @@ static json tool_decompile(const json& params) {
         if (TWidget *dv = find_widget("IDA View-A"))
             activate_widget(dv, true);
 
+        // Close leftover Pseudocode widgets BEFORE triggering F5. With the
+        // asynchronous cloud decompiler (IDA Free / hexcx) the new output may
+        // not have landed in the widget yet when we first poll, and a stale
+        // widget still showing the *previous* function could be picked up —
+        // worse, if the previous function calls ours, its text contains our
+        // name at the call site. Once all pseudocode tabs are closed, any
+        // Pseudocode-* widget found afterwards holds freshly generated output.
+        // Trade-off: pseudocode tabs the user had open are closed too.
+        for (char c = 'A'; c <= 'Z'; c++) {
+            char buf[32];
+            qsnprintf(buf, sizeof(buf), "Pseudocode-%c", c);
+            if (TWidget *w = find_widget(buf))
+                close_widget(w, 0);
+        }
+
         // Step 2: Trigger F5 decompilation via GUI action
         bool acted = process_ui_action("hx:GenPseudo");
         dbg("[MCP] decompile: hx:GenPseudo = %d\n", acted);
@@ -247,14 +262,33 @@ static json tool_decompile(const json& params) {
         // Steps 3+4: Find the pseudocode widget showing THIS function and read it.
         //
         // On IDA Pro, Method A (vdui_t/cfunc probe) validates by cfunc_t::entry_ea.
-        // But IDA Free's cloud decompiler (hexcx) does NOT populate cfunc_t/vdui_t, so
-        // there we must read the widget text (Method B) and validate it belongs to our
-        // function by checking the decompiled text contains the function's name — this
-        // is what stops a stale widget (on another function) from being returned, which
-        // was the original bug. The cloud decompile is also asynchronous, so we retry
-        // briefly to let the freshly-generated pseudocode land in the widget.
+        // IDA Free's cloud decompiler (hexcx) does NOT populate cfunc_t/vdui_t, so
+        // there we must read the widget text (Method B) and validate that it belongs
+        // to our function. Validate the *declaration line only* (issue #6): checking
+        // for the name anywhere in the text also matches a stale widget of a caller,
+        // because the call site contains the callee's name. The pseudocode may show
+        // the raw name or a demangled name, so match against both. The cloud
+        // decompile is asynchronous, so we retry briefly to let the freshly
+        // generated pseudocode land in the widget.
         qstring fname;
         get_func_name(&fname, pfn->start_ea);
+
+        std::vector<std::string> candidates;
+        if (!fname.empty()) candidates.push_back(fname.c_str());
+
+        // Demangled short form, with any argument list stripped
+        // ("Foo::bar(int)" -> "Foo::bar"), so mangled functions match too.
+        qstring dname;
+        get_short_name(&dname, pfn->start_ea);
+        std::string demangled = utils::trim(dname.c_str());
+        {
+            size_t paren = demangled.find('(');
+            if (paren != std::string::npos && paren > 0)
+                demangled = utils::trim(demangled.substr(0, paren));
+        }
+        if (!demangled.empty() &&
+            (candidates.empty() || candidates[0] != demangled))
+            candidates.push_back(demangled);
 
         for (int attempt = 0; attempt < 40; attempt++) {
             for (char c = 'A'; c <= 'Z'; c++) {
@@ -273,12 +307,22 @@ static json tool_decompile(const json& params) {
                     };
                 }
 
-                // Method B: text iteration (IDA Free). Accept only if the text names
-                // this function, so a stale widget on a different function is skipped.
+                // Method B: text iteration (IDA Free). Accept only if the
+                // declaration line of the text declares this function, so a
+                // stale widget (e.g. showing a caller of this function) is
+                // skipped and the retry loop waits for fresh output.
                 std::string t;
                 int tl = 0;
                 if (read_pseudocode_via_places(w, t, tl)) {
-                    if (fname.empty() || t.find(fname.c_str()) != std::string::npos) {
+                    std::string decl = utils::pseudocode_decl_line(t);
+                    bool declares = false;
+                    for (const std::string& cand : candidates) {
+                        if (utils::line_declares_function(decl, cand)) {
+                            declares = true;
+                            break;
+                        }
+                    }
+                    if (declares) {
                         return {
                             {"addr", utils::hex_str(pfn->start_ea)},
                             {"pseudocode", t}, {"lines", tl}, {"ok", true},

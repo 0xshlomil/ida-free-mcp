@@ -77,4 +77,18 @@ std::vector<std::string> split(const std::string& s, char delim);
 /// Simple glob matching (case-insensitive).
 bool glob_match(const std::string& pattern, const std::string& text);
 
+// ═══════════════════════════════════════════════════════════════════
+// Pseudocode Validation
+// ═══════════════════════════════════════════════════════════════════
+
+/// Extract the declaration (prototype) line from pseudocode text:
+/// the first line that is not blank and does not start with "//".
+/// Returns "" if no such line exists.
+std::string pseudocode_decl_line(const std::string& text);
+
+/// True if `line` declares `name`: `name` appears as a whole identifier
+/// followed by "(" (whitespace allowed before the paren). Empty name
+/// or line returns false.
+bool line_declares_function(const std::string& line, const std::string& name);
+
 } // namespace utils

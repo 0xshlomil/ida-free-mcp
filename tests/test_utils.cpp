@@ -280,3 +280,86 @@ TEST_CASE("null returns empty object") {
 }
 
 } // TEST_SUITE
+
+TEST_SUITE("pseudocode_decl_line") {
+
+TEST_CASE("skips blank and comment lines") {
+    std::string text =
+        "\n"
+        "// Pseudocode produced by IDA Free's cloud decompiler\n"
+        "//----- function start-----\n"
+        "char __fastcall sub_1807AA480(__int64 a1)\n"
+        "{\n"
+        "  return sub_1801C9A30(a1, 0);\n"
+        "}\n";
+    CHECK(utils::pseudocode_decl_line(text) ==
+          "char __fastcall sub_1807AA480(__int64 a1)");
+}
+
+TEST_CASE("first non-blank line is returned when no comments") {
+    CHECK(utils::pseudocode_decl_line("int __cdecl main(int argc, const char **argv)") ==
+          "int __cdecl main(int argc, const char **argv)");
+}
+
+TEST_CASE("trailing text without newline") {
+    CHECK(utils::pseudocode_decl_line("  \n  void sub_401000()  ") ==
+          "void sub_401000()");
+}
+
+TEST_CASE("blank or comment-only text returns empty") {
+    CHECK(utils::pseudocode_decl_line("").empty());
+    CHECK(utils::pseudocode_decl_line("\n\n   \n").empty());
+    CHECK(utils::pseudocode_decl_line("// only a comment\n// another").empty());
+}
+
+} // TEST_SUITE
+
+TEST_SUITE("line_declares_function") {
+
+TEST_CASE("matches the prototype of the function itself") {
+    CHECK(utils::line_declares_function("char __fastcall sub_1807AA480(__int64 a1)",
+                                        "sub_1807AA480"));
+    CHECK(utils::line_declares_function("int __cdecl main(int argc, const char **argv)",
+                                        "main"));
+}
+
+TEST_CASE("issue #6: callee name in caller body is not a declaration") {
+    // Stale widget from a previous decompile shows caller A, whose text
+    // contains callee B at the call site. Anywhere-substring matching accepted
+    // this; declaration-line matching must reject it.
+    std::string caller_text =
+        "char __fastcall sub_1807AA480(__int64 a1)\n"
+        "{\n"
+        "  return sub_1801C9A30(a1, 0);\n"
+        "}\n";
+    std::string decl = utils::pseudocode_decl_line(caller_text);
+    CHECK_FALSE(utils::line_declares_function(decl, "sub_1801C9A30"));
+    CHECK(utils::line_declares_function(decl, "sub_1807AA480"));
+}
+
+TEST_CASE("demangled prototype matches short name with namespace") {
+    CHECK(utils::line_declares_function("void __fastcall Foo::Bar::baz(Foo::Bar *this, int x)",
+                                        "Foo::Bar::baz"));
+}
+
+TEST_CASE("usercall annotation between name and paren is tolerated") {
+    CHECK(utils::line_declares_function("__int64 __usercall sub_401000@<rax>(int a1)",
+                                        "sub_401000"));
+}
+
+TEST_CASE("no identifier embedding") {
+    // "bar" must not match inside "foobar(" or "bar_helper("
+    CHECK_FALSE(utils::line_declares_function("void foobar(void)", "bar"));
+    CHECK_FALSE(utils::line_declares_function("void bar_helper(void)", "bar"));
+    CHECK(utils::line_declares_function("void bar(void)", "bar"));
+    // bar_t in the return type must not hijack the match
+    CHECK(utils::line_declares_function("bar_t __fastcall bar(bar_t x)", "bar"));
+}
+
+TEST_CASE("name without call paren does not match") {
+    CHECK_FALSE(utils::line_declares_function("void *bar", "bar"));
+    CHECK_FALSE(utils::line_declares_function("", "bar"));
+    CHECK_FALSE(utils::line_declares_function("void bar(void)", ""));
+}
+
+} // TEST_SUITE

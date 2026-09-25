@@ -288,4 +288,61 @@ bool glob_match(const std::string& pattern, const std::string& text) {
     return pi == pattern.size();
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Pseudocode Validation
+// ═══════════════════════════════════════════════════════════════════
+
+std::string pseudocode_decl_line(const std::string& text) {
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t nl = text.find('\n', pos);
+        std::string line = (nl == std::string::npos)
+                               ? text.substr(pos)
+                               : text.substr(pos, nl - pos);
+        pos = (nl == std::string::npos) ? text.size() : nl + 1;
+        std::string t = trim(line);
+        if (t.empty()) continue;
+        if (t.rfind("//", 0) == 0) continue; // comment/banner line
+        return t;
+    }
+    return "";
+}
+
+static bool is_ident_char(char c) {
+    unsigned char u = static_cast<unsigned char>(c);
+    return std::isalnum(u) != 0 || c == '_' || c == '$';
+}
+
+bool line_declares_function(const std::string& line, const std::string& name) {
+    if (line.empty() || name.empty()) return false;
+
+    size_t from = 0;
+    while (true) {
+        size_t p = line.find(name, from);
+        if (p == std::string::npos) return false;
+        size_t end = p + name.size();
+        from = p + 1;
+
+        // Whole-identifier occurrence only: reject matches embedded in a longer
+        // name (e.g. name "bar" inside "foobar(" or "bar_t").
+        if (p > 0 && is_ident_char(line[p - 1])) continue;
+        if (end < line.size() && is_ident_char(line[end])) continue;
+
+        // After the name, allow whitespace and __usercall return-register
+        // annotations ("sub_X@<eax>(...)"), then require the '(' of the call.
+        size_t q = end;
+        while (true) {
+            while (q < line.size() && (line[q] == ' ' || line[q] == '\t')) q++;
+            if (q + 1 < line.size() && line[q] == '@' && line[q + 1] == '<') {
+                size_t gt = line.find('>', q + 2);
+                if (gt == std::string::npos) break;
+                q = gt + 1;
+                continue;
+            }
+            break;
+        }
+        if (q < line.size() && line[q] == '(') return true;
+    }
+}
+
 } // namespace utils
