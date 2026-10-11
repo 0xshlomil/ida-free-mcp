@@ -313,9 +313,7 @@ static bool is_ident_char(char c) {
     return std::isalnum(u) != 0 || c == '_' || c == '$';
 }
 
-bool line_declares_function(const std::string& line, const std::string& name) {
-    if (line.empty() || name.empty()) return false;
-
+static bool line_declares_exact_name(const std::string& line, const std::string& name) {
     size_t from = 0;
     while (true) {
         size_t p = line.find(name, from);
@@ -343,6 +341,16 @@ bool line_declares_function(const std::string& line, const std::string& name) {
         }
         if (q < line.size() && line[q] == '(') return true;
     }
+}
+
+bool line_declares_function(const std::string& line, const std::string& name) {
+    if (line.empty() || name.empty()) return false;
+    if (line_declares_exact_name(line, name)) return true;
+
+    // Mach-O C symbols carry a leading underscore ("_main") that the
+    // decompiler drops from the prototype ("main(").
+    return name.size() > 1 && name[0] == '_' &&
+           line_declares_exact_name(line, name.substr(1));
 }
 
 } // namespace utils

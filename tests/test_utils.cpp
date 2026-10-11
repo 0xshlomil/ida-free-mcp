@@ -356,6 +356,19 @@ TEST_CASE("no identifier embedding") {
     CHECK(utils::line_declares_function("bar_t __fastcall bar(bar_t x)", "bar"));
 }
 
+TEST_CASE("Mach-O symbol prefix: decompiler drops the leading underscore") {
+    // IDA names C functions in Mach-O binaries "_suma_cuadrados", but the
+    // decompiler declares them as "suma_cuadrados(".
+    CHECK(utils::line_declares_function(
+        "__int64 __fastcall suma_cuadrados(int a1, int a2)", "_suma_cuadrados"));
+    CHECK(utils::line_declares_function("int __cdecl main(int argc, const char **argv)",
+                                        "_main"));
+    // The exact name still wins when the decompiler keeps the underscore.
+    CHECK(utils::line_declares_function("void __cdecl _start(void)", "_start"));
+    // Stripping the prefix must not allow embedding in a longer identifier.
+    CHECK_FALSE(utils::line_declares_function("void foobar(void)", "_bar"));
+}
+
 TEST_CASE("name without call paren does not match") {
     CHECK_FALSE(utils::line_declares_function("void *bar", "bar"));
     CHECK_FALSE(utils::line_declares_function("", "bar"));
