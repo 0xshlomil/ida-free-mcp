@@ -223,15 +223,17 @@ static json tool_decompile(const json& params) {
             utils::hex_str(pfn->start_ea).c_str(),
             utils::hex_str(pfn->end_ea).c_str());
 
-        // Step 1: Navigate to the function
-        jumpto(pfn->start_ea);
-
         // Activate the disassembly view BEFORE F5. hx:GenPseudo decompiles the
         // current address of the *focused* widget — if a Pseudocode widget is the
         // active one (e.g. left over from a previous call), F5 just re-runs on ITS
         // function and never refreshes to ours, which is the stale-output bug.
         if (TWidget *dv = find_widget("IDA View-A"))
             activate_widget(dv, true);
+
+        // Navigate only after the disassembly view has focus. A jump made
+        // while a pseudocode tab is active does not update IDA View-A.
+        if (!jumpto(pfn->start_ea))
+            throw std::runtime_error("Cannot navigate to the requested function");
 
         // Close leftover Pseudocode widgets BEFORE triggering F5. With the
         // asynchronous cloud decompiler (IDA Free / hexcx) the new output may
