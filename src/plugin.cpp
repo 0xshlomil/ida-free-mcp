@@ -122,7 +122,9 @@ struct McpPlugmod : public plugmod_t {
     std::unique_ptr<mcp::McpProtocol> protocol;
     std::unique_ptr<server::McpHttpServer> http_server;
 
-    static constexpr const char* HOST = "0.0.0.0";
+    // Loopback by default: the server has no authentication. Set
+    // IDA_MCP_HOST=0.0.0.0 to reach it from another machine or a VM host.
+    static constexpr const char* DEFAULT_HOST = "127.0.0.1";
     static constexpr int DEFAULT_PORT = 13337;
 
     McpPlugmod() = default;
@@ -156,6 +158,10 @@ struct McpPlugmod : public plugmod_t {
             if (p > 0 && p <= 65535) port = p;
         }
 
+        // Determine bind address (env var or default)
+        const char* host = std::getenv("IDA_MCP_HOST");
+        if (!host || !*host) host = DEFAULT_HOST;
+
         // Install dialog auto-dismiss hook for search tools
         idasync::install_dialog_hook();
 
@@ -177,9 +183,9 @@ struct McpPlugmod : public plugmod_t {
 
         // Start HTTP server (auto-increments port if in use)
         http_server = std::make_unique<server::McpHttpServer>(*protocol);
-        if (!http_server->start(HOST, port)) {
-            msg("[MCP] Error: Failed to start server on port range %d-%d\n",
-                port, port + 10);
+        if (!http_server->start(host, port)) {
+            msg("[MCP] Error: Failed to start server on %s, port range %d-%d\n",
+                host, port, port + 10);
             http_server.reset();
             protocol.reset();
             return false;
@@ -188,7 +194,7 @@ struct McpPlugmod : public plugmod_t {
         // Use the actual bound port for download URLs
         int actual_port = http_server->port();
         char url_buf[256];
-        qsnprintf(url_buf, sizeof(url_buf), "http://%s:%d", HOST, actual_port);
+        qsnprintf(url_buf, sizeof(url_buf), "http://%s:%d", host, actual_port);
         protocol->set_download_base_url(url_buf);
 
         // Write instance registry file

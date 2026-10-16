@@ -8,7 +8,7 @@ It exposes IDA's analysis capabilities through the [Model Context Protocol (MCP)
 
 1. Open a binary in IDA
 2. **Edit > Plugins > MCP** (or **Ctrl+Alt+M**) to start the server
-3. Connect your MCP client to `http://0.0.0.0:13337/mcp`
+3. Connect your MCP client to `http://127.0.0.1:13337/mcp`
 4. Press **Ctrl+Alt+M** again to stop
 
 ### Connecting an MCP client
@@ -38,6 +38,7 @@ Multiple IDA sessions can run MCP simultaneously — the port auto-increments if
 
 | Variable | Description | Default |
 |---|---|---|
+| `IDA_MCP_HOST` | Address the HTTP server binds to. Set `0.0.0.0` to accept connections from other machines, such as an agent outside a VM. The server has no authentication, so anyone who can reach that address can drive IDA. | `127.0.0.1` |
 | `IDA_MCP_PORT` | Base port for the HTTP server | `13337` |
 | `IDA_MCP_TOOL_TIMEOUT_SEC` | Tool execution timeout in seconds | — |
 | `IDA_MCP_URL` | Download base URL for large outputs | `http://127.0.0.1:<port>` |
